@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Sensor Data</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Real-time Temperature Data</h1>
+    <div>
+        <p><strong>Dry Bulb Temperature:</strong> {{ latest_data[0] }}°C</p>
+        <p><strong>Wet Bulb Temperature:</strong> {{ latest_data[1] }}°C</p>
+        <p><strong>Last Update:</strong> {{ latest_data[2] }}</p>
+    </div>
+
+    <h2>Psychrometric Chart</h2>
+    <div>
+        <img src="{{ url_for('static', filename='psychrometric_chart.png') }}" alt="Psychrometric Chart">
+        <p>Coordinates will be dynamically calculated and plotted here...</p>
+    </div>
+</body>
+</html>
