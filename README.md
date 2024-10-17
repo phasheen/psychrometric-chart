@@ -32,7 +32,7 @@ The following lists contain the link to buy (Coupang).
 - [Anemometer - 1pc](https://www.coupang.com/vp/products/8192902033?itemId=23453033261&vendorItemId=73031508876&q=%ED%92%8D%EC%86%8D%EA%B3%84&itemsCount=36&searchId=7a7741756f6d49f4b6a9af78966f4b84&rank=0&isAddedCart=)
 
 ## Software Design
-#TODO
+#TODOss
 ## Acknowledgement
 This project was funded by Prof. Ghiseok Kim from Lab of Physical Properties and Process Engineering of Agricultural Products ([SNUPHEL](https://snuphel.snu.ac.kr/)).
 
