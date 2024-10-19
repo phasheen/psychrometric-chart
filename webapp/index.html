@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychrometric Chart Application</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="chart-container">
+            <div id="lineChart">
+                <canvas id="temperatureChart"></canvas>
+            </div>
+            <div id="psychrometricChart">
+                <canvas id="psychroChart"></canvas>
+            </div>
+        </div>
+        <div class="controls-container">
+            <div id="parameters">
+                <h2>Current Readings</h2>
+                <p><strong>Dry Bulb:</strong> <span id="dryBulb">-</span>°C</p>
+                <p><strong>Wet Bulb:</strong> <span id="wetBulb">-</span>°C</p>
+                <p><strong>Relative Humidity:</strong> <span id="relativeHumidity">-</span>%</p>
+                <p><strong>Dew Point:</strong> <span id="dewPoint">-</span>°C</p>
+                <p><strong>Absolute Humidity:</strong> <span id="absoluteHumidity">-</span> g/m³</p>
+                <p><strong>Last Update:</strong> <span id="timestamp">-</span></p>
+            </div>
+            <div id="chartControls">
+                <h2>Chart Controls</h2>
+                <label for="timeRange">Time Range:</label>
+                <select id="timeRange">
+                    <option value="1h">Last Hour</option>
+                    <option value="6h">Last 6 Hours</option>
+                    <option value="24h">Last 24 Hours</option>
+                    <option value="7d">Last 7 Days</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
