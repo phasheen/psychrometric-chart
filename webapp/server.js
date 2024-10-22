@@ -53,6 +53,19 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-server.listen(3000, () => {
-    console.log('Server is running on http://localhost:3000');
+wss.on('connection', (ws) => {
+    console.log('New WebSocket connection');
+    
+    ws.on('error', (error) => {
+        console.error('WebSocket error:', error);
+    });
+
+    ws.on('close', () => {
+        console.log('WebSocket connection closed');
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });

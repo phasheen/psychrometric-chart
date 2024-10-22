@@ -1,4 +1,4 @@
-const socket = new WebSocket('ws://' + location.host);
+const socket = new WebSocket('wss://' + location.host);
 let temperatureChart, psychroChart;
 const dataHistory = [];
 
@@ -151,6 +151,19 @@ socket.onmessage = function(event) {
     const data = JSON.parse(event.data);
     updateCharts(data);
     updateParameters(data);
+};
+
+socket.onerror = function(error) {
+    console.error('WebSocket Error:', error);
+};
+
+socket.onclose = function(event) {
+    console.log('WebSocket connection closed:', event.code, event.reason);
+    setTimeout(function() {
+        console.log('Attempting to reconnect...');
+        socket = new WebSocket('wss://' + location.host);
+        // Re-attach event handlers
+    }, 5000);
 };
 
 document.getElementById('timeRange').addEventListener('change', function() {
