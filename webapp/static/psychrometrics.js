@@ -910,7 +910,7 @@ function ViewModel() {
             ).call(boundaryLine);
     });
 
-    self.states = ko.observableArray([new StateTempω(self.maxTemp(), self.maxω(), "State 1", self.totalPressure())]);
+    self.states = ko.observableArray([]);
 
     self.addState = () => {
         self.states.push(
@@ -1065,7 +1065,7 @@ function ViewModel() {
     self.savePng = () => saveSvgAsPng(document.getElementById("chartsvg"), "chart.png", { backgroundColor: "white" });
 
     // Initialize states with default or current input values
-    // self.states = ko.observableArray([new StateTempω(self.maxTemp(), self.maxω(), "State 1", self.totalPressure())]);
+    self.states = ko.observableArray([new StateTempω(self.maxTemp(), self.maxω(), "State 1", self.totalPressure())]);
 
     // Function to update state based on input data
     self.updateState = function(data) {
@@ -1209,43 +1209,6 @@ function ViewModel() {
         }
     });
 
-    // Update the state update function
-    self.updateState = function(data) {
-        if (!data || typeof data.dryBulb === 'undefined') return;
-        
-        try {
-            // Convert Celsius to Fahrenheit for internal calculations
-            const dryBulbF = (data.dryBulb * 9/5) + 32;
-            const rhDecimal = data.relativeHumidity / 100;
-            
-            console.log('Updating state with:', {
-                dryBulbC: data.dryBulb,
-                dryBulbF: dryBulbF,
-                rh: data.relativeHumidity,
-                rhDecimal: rhDecimal
-            });
-
-            // Update the state
-            if (self.states() && self.states().length > 0) {
-                const state = self.states()[0];
-                state.temperature(dryBulbF);
-                const pv = pvFromTempRh(dryBulbF, rhDecimal);
-                const w = wFromPv(pv, self.totalPressure());
-                state.humidityRatio(w);
-                
-                console.log('State updated:', {
-                    tempF: dryBulbF,
-                    pv: pv,
-                    w: w,
-                    x: self.xScale()(dryBulbF),
-                    y: self.yScale()(w),
-                    humidityRatio: w
-                });
-            }
-        } catch (error) {
-            console.error('Error updating psychrometric state:', error);
-        }
-    };
 }
 
 var viewModel = new ViewModel();

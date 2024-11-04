@@ -6,7 +6,7 @@
 class DataTransmitter {
 public:
     void begin();
-    void sendData(float dryBulbTemp, float wetBulbTemp, float relativeHumidity, float dewPoint, float absoluteHumidity);
+    void sendData(float dryBulbTemp, float wetBulbTemp, float relativeHumidity, float dewPoint, float absoluteHumidity, float partialPressure, float specificVolume, float enthalpy);
 };
 
 #endif

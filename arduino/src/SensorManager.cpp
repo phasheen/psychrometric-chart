@@ -1,8 +1,8 @@
 #include "SensorManager.h"
 
 #define ONE_WIRE_BUS 2
-#define DRY_BULB_SENSOR_INDEX 0
-#define WET_BULB_SENSOR_INDEX 1
+#define DRY_BULB_SENSOR_INDEX 1
+#define WET_BULB_SENSOR_INDEX 0
 
 SensorManager::SensorManager() : oneWire(ONE_WIRE_BUS), sensors(&oneWire) {}
 

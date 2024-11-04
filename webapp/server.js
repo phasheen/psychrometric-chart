@@ -19,6 +19,14 @@ port.on('error', (err) => {
     console.error('Serial port error:', err.message);
 });
 
+port.on('open', () => {
+    console.log('Serial port opened successfully');
+});
+
+port.on('close', () => {
+    console.log('Serial port closed');
+});
+
 const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
 let latestData = {
@@ -27,18 +35,43 @@ let latestData = {
     relativeHumidity: 0,
     dewPoint: 0,
     absoluteHumidity: 0,
+    partialPressure: 0,
+    specificVolume: 0,
+    enthalpy: 0,
     timestamp: new Date().toISOString()
 };
 
 parser.on('data', (data) => {
     try {
-        const values = data.split(',').map(Number);
-        if (values.length !== 5 || values.some(isNaN)) {
-            console.error('Invalid data format received:', data);
+        // Trim whitespace and check if the data is not empty
+        const trimmedData = data.trim();
+        // console.log('Raw data received:', trimmedData);
+        
+        if (trimmedData === '') {
+            return; // Ignore empty lines
+        }
+
+        // Skip debug output lines
+        if (trimmedData.includes('Environmental Calculations Results') || 
+            trimmedData.includes('Sensor Address') ||
+            trimmedData.includes('Absolute Humidity') ||
+            trimmedData.includes('Relative Humidity') ||
+            trimmedData.includes('Partial Pressure') ||
+            trimmedData.includes('Specific Volume') ||
+            trimmedData.includes('Enthalpy') ||
+            trimmedData.includes('Dew-point')) {
             return;
         }
 
-        const [dryBulb, wetBulb, relativeHumidity, dewPoint, absoluteHumidity] = values;
+        // Parse comma-separated values
+        const values = trimmedData.split(',').map(Number);
+        
+        if (values.length !== 8 || values.some(isNaN)) {
+            console.error('Invalid data values:', values);
+            return;
+        }
+
+        const [dryBulb, wetBulb, relativeHumidity, dewPoint, absoluteHumidity, partialPressure, specificVolume, enthalpy] = values;
         
         // Validate ranges
         if (dryBulb < -50 || dryBulb > 100 || 
@@ -51,12 +84,19 @@ parser.on('data', (data) => {
         latestData = {
             dryBulb,
             wetBulb,
-            relativeHumidity,
+            relativeHumidity: relativeHumidity * 100, // Convert from fraction to percentage
             dewPoint,
             absoluteHumidity,
+            partialPressure,
+            specificVolume,
+            enthalpy,
             timestamp: new Date().toISOString()
         };
         
+        // Log successful data processing
+        console.log('Processed data:', latestData);
+        
+        // Send to all connected clients
         wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(latestData));

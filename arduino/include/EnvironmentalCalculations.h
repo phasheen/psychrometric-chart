@@ -3,9 +3,12 @@
 
 class EnvironmentalCalculations {
 public:
-    float calculateRelativeHumidity(float dryBulb, float wetBulb);
-    float calculateDewPoint(float dryBulb, float relativeHumidity);
-    float calculateAbsoluteHumidity(float dryBulb, float relativeHumidity);
+    float calculateRelativeHumidity(float dryBulbTemp, float wetBulbTemp);
+    float calculateDewPoint(float dryBulbTemp, float relativeHumidity);
+    float calculateAbsoluteHumidity(float dryBulbTemp, float relativeHumidity);
+    float calculatePartialPressure(float dryBulbTemp, float relativeHumidity);
+    float calculateSpecificVolume(float dryBulbTemp, float absoluteHumidity);
+    float calculateEnthalpy(float dryBulbTemp, float absoluteHumidity);
 };
 
 #endif

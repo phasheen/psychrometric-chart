@@ -1,40 +1,142 @@
 #include "EnvironmentalCalculations.h"
 #include <math.h>
 
-float EnvironmentalCalculations::calculateRelativeHumidity(float dryBulb, float wetBulb) {
-    // This is a simplified calculation and may not be accurate for all conditions
-    // For a more accurate calculation, consider using psychrometric formulas
-    float e = 2.718282;
-    float es = 6.112 * pow(e, (17.67 * dryBulb) / (dryBulb + 243.5));
-    float ew = 6.112 * pow(e, (17.67 * wetBulb) / (wetBulb + 243.5));
-    float E = ew - 0.00066 * (1 + 0.00115 * wetBulb) * (dryBulb - wetBulb) * 1013.25;
-    return (E / es) * 100;
+// Constants
+const double P_atm = 101325;  // Atmospheric pressure (unit: Pa)
+const double epsilon = 0.000005;  // Precision threshold for iteration
+
+// Helper function to convert Celsius to Kelvin
+double CtoK(double T) {
+    return T + 273.15;
 }
 
-float EnvironmentalCalculations::calculateDewPoint(float dryBulb, float relativeHumidity) {
-    float a = 17.271;
-    float b = 237.7;
-    float temp = (a * dryBulb) / (b + dryBulb) + log(relativeHumidity/100);
-    float Td = (b * temp) / (a - temp);
-    return Td;
+// Function to calculate saturated vapor pressure (unit: Pa)
+double P_ws(double T) {
+    double T_K = CtoK(T);  // Convert temperature to Kelvin
+    double C1, C2, C3, C4, C5, C6, C7;
+
+    if (T >= 0) {  // For temperatures above 0°C
+        C1 = -5800.2206;
+        C2 = 1.3914993;
+        C3 = -0.048640239;
+        C4 = 0.000041764768;
+        C5 = -0.000000014452093;
+        C6 = 0;
+        C7 = 6.5459673;
+    } else {  // For temperatures below 0°C
+        C1 = -5674.5359;
+        C2 = 6.3925247;
+        C3 = -0.009677843;
+        C4 = 0.00000062215701;
+        C5 = 2.0747825E-09;
+        C6 = -9.484024E-13;
+        C7 = 4.1635019;
+    }
+
+    return exp(C1 / T_K + C2 + C3 * T_K + C4 * T_K * T_K + C5 * pow(T_K, 3) + C6 * pow(T_K, 4) + C7 * log(T_K));
 }
 
-float EnvironmentalCalculations::calculateAbsoluteHumidity(float dryBulb, float relativeHumidity) {
-    // Constants
-    float R = 8.314472;    // Universal gas constant (J/(mol·K))
-    float Mw = 0.018016;   // Molar mass of water (kg/mol)
+// Correction factor for dry air and wet air
+double coef(double P_atm, double T) {
+    return 1 + 0.004 * P_atm / 101325 + pow((0.0008 * T - 0.004), 2);
+}
 
-    // Convert temperature to Kelvin
-    float T = dryBulb + 273.15;
+// Function for calculating saturated absolute humidity for dry air and wet air
+double H_s(double coef, double P_ws, double P_atm) {
+    return 0.62198 * coef * P_ws / (P_atm - coef * P_ws);
+}
 
-    // Calculate saturation vapor pressure
-    float eso = 6.1078 * pow(10, (7.5 * dryBulb) / (237.3 + dryBulb));
+// Function to calculate absolute humidity (kg of water vapor per kg of dry air)
+double W_prime(double T_db, double T_wb, double H_wb) {
+    if (T_db >= 0) {
+        return ((2501 - 2.381 * T_wb) * H_wb - 1.006 * (T_db - T_wb)) / (2501 + 1.805 * T_db - 4.186 * T_wb);
+    } else {
+        return ((2501 + 1.805 * T_wb - 2.093 * T_wb + 334) * H_wb - 1.006 * (T_db - T_wb)) / 
+               (2501 + 1.805 * T_db - 2.093 * T_wb + 334);
+    }
+}
 
-    // Calculate actual vapor pressure
-    float ea = (relativeHumidity / 100) * eso;
+// Function to calculate the partial pressure of humid air (Pa)
+double VP(double P_atm, double W_prime, double coef_wb) {
+    return P_atm * W_prime / (0.62198 + W_prime) / coef_wb;
+}
 
-    // Calculate absolute humidity
-    float absoluteHumidity = (ea * Mw) / (R * T);
+// Function to calculate relative humidity
+double RH(double H_db, double W_prime, double coef_db, double P_db, double P_atm) {
+    double DoS = W_prime / H_db;
+    return DoS / (1 - (1 - DoS) * (coef_db * P_db / P_atm));
+}
 
-    return absoluteHumidity * 1000;  // Convert to g/m³
+// Function to calculate dew-point temperature using partial pressure
+double FindDew(double P_atm, double Pw) {
+    double LnPw = log(Pw / 1000.0);  // Convert pressure to kPa and take log
+    double Dew = 6.54 + 14.526 * LnPw + 0.7389 * pow(LnPw, 2) + 0.09486 * pow(LnPw, 3) + 0.4569 * pow(Pw / 1000.0, 0.1984);
+
+    // Condition for negative dew point temperatures
+    if (Dew < 0) {
+        Dew = 6.09 + 12.608 * LnPw + 0.4959 * pow(LnPw, 2);
+    }
+
+    // Set initial bounds for the iterative search
+    double TT1 = Dew - 0.2;
+    double TT2 = Dew + 0.2;
+
+    // Iterative refinement of dew point calculation
+    while (true) {
+        Dew = (TT1 + TT2) / 2.0;
+        double Pwsdew = P_ws(Dew);  // Saturation vapor pressure at dew point
+
+        if (Pwsdew > Pw) {
+            TT2 = Dew;
+        } else {
+            TT1 = Dew;
+        }
+
+        // Stop iteration when the precision threshold is met
+        if (fabs(Pwsdew - Pw) / Pw <= epsilon) {
+            break;
+        }
+    }
+
+    return Dew;  // Return the final calculated dew point temperature
+}
+
+// EnvironmentalCalculations class methods
+
+// Calculate relative humidity
+float EnvironmentalCalculations::calculateRelativeHumidity(float dryBulbTemp, float wetBulbTemp) {
+    double P_db = P_ws(dryBulbTemp);
+    double coef_db = coef(P_atm, dryBulbTemp);
+    double H_db = H_s(coef_db, P_db, P_atm);
+    double W_prime_val = W_prime(dryBulbTemp, wetBulbTemp, H_db);
+    return (float)(RH(H_db, W_prime_val, coef_db, P_db, P_atm));
+}
+
+// Calculate dew-point temperature (°C)
+float EnvironmentalCalculations::calculateDewPoint(float dryBulbTemp, float relativeHumidity) {
+    double W_prime_val = W_prime(dryBulbTemp, dryBulbTemp, relativeHumidity);
+    double VP_val = VP(P_atm, W_prime_val, coef(P_atm, dryBulbTemp));
+    return (float)FindDew(P_atm, VP_val);
+}
+
+// Calculate absolute humidity (kg/kg)
+float EnvironmentalCalculations::calculateAbsoluteHumidity(float dryBulbTemp, float relativeHumidity) {
+    double W_prime_val = W_prime(dryBulbTemp, dryBulbTemp, relativeHumidity);
+    return (float)W_prime_val;
+}
+
+// Calculate partial pressure of humid air (Pa)
+float EnvironmentalCalculations::calculatePartialPressure(float dryBulbTemp, float relativeHumidity) {
+    double W_prime_val = W_prime(dryBulbTemp, dryBulbTemp, relativeHumidity);
+    return (float)VP(P_atm, W_prime_val, coef(P_atm, dryBulbTemp));
+}
+
+// Calculate specific volume (m^3/kg)
+float EnvironmentalCalculations::calculateSpecificVolume(float dryBulbTemp, float absoluteHumidity) {
+    return (float)(0.287055 * CtoK(dryBulbTemp) * (1 + 1.6078 * absoluteHumidity) / P_atm);
+}
+
+// Calculate enthalpy (kJ/kg)
+float EnvironmentalCalculations::calculateEnthalpy(float dryBulbTemp, float absoluteHumidity) {
+    return (float)(1.006 * dryBulbTemp + absoluteHumidity * (2501 + 1.805 * dryBulbTemp));
 }

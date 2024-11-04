@@ -2,11 +2,6 @@ let socket;
 let temperatureChart;
 let psychroChart;
 
-if (location.protocol === 'https:') {
-    socket = new WebSocket('wss://' + location.host);
-} else {
-    socket = new WebSocket('ws://' + location.host);
-}
 const dataHistory = [];
 
 const DEFAULT_VALUES = {
@@ -36,13 +31,15 @@ function initCharts() {
                     label: 'Dry Bulb',
                     data: [],
                     borderColor: 'red',
-                    fill: false
+                    fill: false,
+                    tension: 0.4
                 },
                 {
                     label: 'Wet Bulb',
                     data: [],
                     borderColor: 'blue',
-                    fill: false
+                    fill: false,
+                    tension: 0.4
                 }
             ]
         },
@@ -53,17 +50,27 @@ function initCharts() {
                 x: {
                     type: 'time',
                     time: {
-                        unit: 'minute'
+                        unit: 'minute',
+                        displayFormats: {
+                            minute: 'HH:mm'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
                     }
                 },
                 y: {
-                    // beginAtZero: false,
-                    // suggestedMin: 20,
-                    // suggestedMax: 30,
+                    beginAtZero: false,
                     title: {
                         display: true,
                         text: 'Temperature (°C)'
                     }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
                 }
             }
         }
@@ -74,25 +81,20 @@ function initCharts() {
 }
 
 function updateCharts(data) {
-    // Add null check at the start
     if (!data) {
         console.warn('No data provided to updateCharts');
         return;
     }
 
-    // Add validation and logging
-    if (!data || typeof data.dryBulb !== 'number' || typeof data.relativeHumidity !== 'number') {
-        console.warn('Invalid data received:', data);
-        return;
-    }
-
     console.log('Updating charts with data:', data);
 
-    const timestamp = new Date(data.timestamp);
+    const timestamp = new Date(data.timestamp || new Date());
     dataHistory.push({...data, timestamp});
+    
+    // Limit history size
     if (dataHistory.length > 1000) dataHistory.shift();
 
-    // Update temperature chart (in Celsius)
+    // Update temperature chart
     const timeRange = document.getElementById('timeRange').value;
     const filteredData = filterDataByTimeRange(timeRange);
     
@@ -101,13 +103,22 @@ function updateCharts(data) {
     const maxTemp = Math.max(...temperatures, data.dryBulb, data.wetBulb);
     const minTemp = Math.min(...temperatures, data.dryBulb, data.wetBulb);
     const padding = 1;
-    
-    // Update temperature chart
+
+    // Update temperature chart scales
     temperatureChart.options.scales.y.min = Math.floor(minTemp - padding);
     temperatureChart.options.scales.y.max = Math.ceil(maxTemp + padding);
-    temperatureChart.data.datasets[0].data = filteredData.map(d => ({x: d.timestamp, y: d.dryBulb}));
-    temperatureChart.data.datasets[1].data = filteredData.map(d => ({x: d.timestamp, y: d.wetBulb}));
-    temperatureChart.update();
+    
+    // Update datasets
+    temperatureChart.data.datasets[0].data = filteredData.map(d => ({
+        x: d.timestamp,
+        y: Number(d.dryBulb)
+    }));
+    temperatureChart.data.datasets[1].data = filteredData.map(d => ({
+        x: d.timestamp,
+        y: Number(d.wetBulb)
+    }));
+    
+    temperatureChart.update(); // Update with default animation
 
     // Update psychrometric chart
     if (window.viewModel) {
@@ -120,8 +131,6 @@ function updateCharts(data) {
         } catch (error) {
             console.error('Error updating psychrometric state:', error);
         }
-    } else {
-        console.warn('viewModel not initialized');
     }
 
     // Update readings
@@ -142,39 +151,95 @@ function filterDataByTimeRange(range) {
 }
 
 function updateParameters(data) {
-    document.getElementById('dryBulb').textContent = data.dryBulb.toFixed(2);
-    document.getElementById('wetBulb').textContent = data.wetBulb.toFixed(2);
-    document.getElementById('relativeHumidity').textContent = data.relativeHumidity.toFixed(2);
-    document.getElementById('dewPoint').textContent = data.dewPoint.toFixed(2);
-    document.getElementById('absoluteHumidity').textContent = data.absoluteHumidity.toFixed(2);
-    document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleString();
+    if (!data) {
+        console.warn('No data provided to updateParameters');
+        return;
+    }
+
+    try {
+        // Add input validation
+        if (typeof data.dryBulb !== 'number' || typeof data.relativeHumidity !== 'number') {
+            throw new Error('Invalid data types for calculations');
+        }
+
+        // Update display values with all parameters
+        document.getElementById('dryBulb').textContent = 
+            (data.dryBulb?.toFixed(1) ?? '---');
+        document.getElementById('wetBulb').textContent = 
+            (data.wetBulb?.toFixed(1) ?? '---');
+        document.getElementById('relativeHumidity').textContent = 
+            (data.relativeHumidity?.toFixed(1) ?? '---');
+        document.getElementById('dewPoint').textContent = 
+            (data.dewPoint?.toFixed(1) ?? '---');
+        document.getElementById('absoluteHumidity').textContent = 
+            (data.absoluteHumidity?.toFixed(3) ?? '---');
+        document.getElementById('partialPressure').textContent = 
+            (data.partialPressure?.toFixed(1) ?? '---');
+        document.getElementById('specificVolume').textContent = 
+            (data.specificVolume?.toFixed(3) ?? '---');
+        document.getElementById('enthalpy').textContent = 
+            (data.enthalpy?.toFixed(1) ?? '---');
+        
+        if (data.timestamp) {
+            document.getElementById('timestamp').textContent = 
+                new Date(data.timestamp).toLocaleTimeString();
+        }
+    } catch (error) {
+        console.error('Error updating parameters:', error.message);
+        // Set display values to error state
+        ['dryBulb', 'wetBulb', 'relativeHumidity', 'dewPoint', 
+         'absoluteHumidity', 'partialPressure', 'specificVolume', 'enthalpy']
+            .forEach(id => document.getElementById(id).textContent = '---');
+    }
 }
 
-socket.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-    if (!isManualMode) {
-        updateCharts(data);
-        updateReadings(data);
+function initializeWebSocket() {
+    if (socket) {
+        socket.close();
     }
-};
 
-socket.onerror = function(error) {
-    console.error('WebSocket Error:', error);
-    isConnected = false;
-    updateConnectionStatus();
-};
-
-socket.onclose = function(event) {
-    console.log('WebSocket connection closed:', event.code, event.reason);
-    isConnected = false;
-    updateConnectionStatus();
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${location.host}/ws`;
     
-    // Implement reconnection logic
-    setTimeout(function() {
-        console.log('Attempting to reconnect...');
-        initializeWebSocket(); // Create a function to handle WebSocket initialization
-    }, 5000);
-};
+    try {
+        socket = new WebSocket(wsUrl);
+        
+        socket.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (!isManualMode) {
+                    updateCharts(data);
+                    updateParameters(data);
+                }
+            } catch (error) {
+                console.error('Error processing WebSocket message:', error);
+            }
+        };
+
+        socket.onopen = function() {
+            console.log('WebSocket connected');
+            isConnected = true;
+            updateConnectionStatus();
+        };
+
+        socket.onerror = function(error) {
+            console.error('WebSocket Error:', error);
+            isConnected = false;
+            updateConnectionStatus();
+        };
+
+        socket.onclose = function() {
+            console.log('WebSocket connection closed');
+            isConnected = false;
+            updateConnectionStatus();
+            setTimeout(initializeWebSocket, 5000);
+        };
+    } catch (error) {
+        console.error('Error initializing WebSocket:', error);
+        isConnected = false;
+        updateConnectionStatus();
+    }
+}
 
 document.getElementById('timeRange').addEventListener('change', function() {
     const filteredData = filterDataByTimeRange(this.value);
@@ -224,8 +289,21 @@ function initPsychroChart() {
 }
 
 function initializeWithDefaults() {
-    updateParameters(DEFAULT_VALUES);
-    updateCharts(DEFAULT_VALUES);
+    const defaultData = {
+        dryBulb: DEFAULT_VALUES.dryBulb,
+        wetBulb: DEFAULT_VALUES.wetBulb,
+        relativeHumidity: DEFAULT_VALUES.relativeHumidity,
+        timestamp: new Date()
+    };
+
+    // Initialize charts first
+    initCharts();
+    
+    // Then update with default values
+    setTimeout(() => {
+        updateCharts(defaultData);
+        updateParameters(defaultData);
+    }, 100);
 }
 
 document.getElementById('input-toggle').addEventListener('change', function() {
@@ -245,96 +323,31 @@ document.getElementById('input-toggle').addEventListener('change', function() {
     }
 });
 
-// Update WebSocket handlers
-socket.onopen = function() {
-    isConnected = true;
-    updateConnectionStatus();
-};
 
-socket.onclose = function() {
-    isConnected = false;
-    updateConnectionStatus();
-};
 
 function updateConnectionStatus() {
     const indicator = document.querySelector('.status-indicator');
     const statusText = document.getElementById('status-text');
     
-    indicator.classList.toggle('connected', isConnected);
-    statusText.textContent = isConnected ? 'Connected to Sensor' : 'Disconnected';
+    if (isConnected) {
+        indicator.classList.add('connected');
+        statusText.textContent = 'Connected';
+    } else {
+        indicator.classList.remove('connected');
+        statusText.textContent = 'Disconnected';
+    }
 }
 
 // Initialize with defaults when page loads
 window.addEventListener('load', function() {
-    // Make sure DOM is fully loaded and sized before initialization
     requestAnimationFrame(() => {
         initCharts();
         initializeManualControls();
+        initializeWebSocket();
         initializeWithDefaults();
         updateConnectionStatus();
     });
 });
-
-document.addEventListener('DOMContentLoaded', function() {
-    const inputToggle = document.getElementById('input-toggle');
-    const manualControls = document.getElementById('manual-controls');
-    const updateButton = document.getElementById('update-manual');
-
-    inputToggle.addEventListener('change', function() {
-        isManualMode = !this.checked;
-        manualControls.style.display = isManualMode ? 'block' : 'none';
-        document.getElementById('mode-text').textContent = isManualMode ? 'Manual Input' : 'Sensor Input';
-        
-        if (isManualMode) {
-            // Set initial manual values
-            document.getElementById('manual-dry-bulb').value = DEFAULT_VALUES.dryBulb;
-            document.getElementById('manual-wet-bulb').value = DEFAULT_VALUES.wetBulb;
-            document.getElementById('manual-rh').value = DEFAULT_VALUES.relativeHumidity;
-        }
-    });
-
-    updateButton.addEventListener('click', function() {
-        if (isManualMode) {
-            const manualData = {
-                timestamp: new Date(),
-                dryBulb: parseFloat(document.getElementById('manual-dry-bulb').value),
-                wetBulb: parseFloat(document.getElementById('manual-wet-bulb').value),
-                relativeHumidity: parseFloat(document.getElementById('manual-rh').value)
-            };
-            updateCharts(manualData);
-            updateReadings(manualData);
-        }
-    });
-});
-
-function updateReadings(data) {
-    document.getElementById('dryBulb').textContent = data.dryBulb.toFixed(1);
-    document.getElementById('wetBulb').textContent = data.wetBulb.toFixed(1);
-    document.getElementById('relativeHumidity').textContent = data.relativeHumidity.toFixed(1);
-    document.getElementById('dewPoint').textContent = calculateDewPoint(data.dryBulb, data.relativeHumidity).toFixed(1);
-    document.getElementById('absoluteHumidity').textContent = calculateAbsoluteHumidity(data.dryBulb, data.relativeHumidity).toFixed(1);
-    document.getElementById('timestamp').textContent = new Date(data.timestamp).toLocaleTimeString();
-}
-
-function initializeManualControls() {
-    const manualInputs = ['manual-dry-bulb', 'manual-wet-bulb', 'manual-rh'];
-    
-    manualInputs.forEach(id => {
-        const input = document.getElementById(id);
-        input.addEventListener('input', function() {
-            if (isManualMode) {
-                const manualData = {
-                    dryBulb: parseFloat(document.getElementById('manual-dry-bulb').value),
-                    wetBulb: parseFloat(document.getElementById('manual-wet-bulb').value),
-                    relativeHumidity: parseFloat(document.getElementById('manual-rh').value),
-                    timestamp: new Date()
-                };
-                updateCharts(manualData);
-                updateParameters(manualData);
-            }
-        });
-    });
-}
 
 function calculateDewPoint(dryBulb, relativeHumidity) {
     // Magnus formula
@@ -363,39 +376,6 @@ function calculateAbsoluteHumidity(dryBulb, relativeHumidity) {
     return (0.622 * e) / (0.01 * (273.15 + dryBulb));
 }
 
-// Update WebSocket connection code
-function initializeWebSocket() {
-    if (location.protocol === 'https:') {
-        socket = new WebSocket('wss://' + location.host + '/ws');
-    } else {
-        socket = new WebSocket('ws://' + location.host + '/ws');
-    }
-
-    socket.onopen = function() {
-        console.log('WebSocket connected');
-        isConnected = true;
-        updateConnectionStatus();
-    };
-
-    socket.onclose = function(event) {
-        console.log('WebSocket disconnected:', event.code, event.reason);
-        isConnected = false;
-        updateConnectionStatus();
-        
-        // Attempt to reconnect
-        setTimeout(initializeWebSocket, 5000);
-    };
-
-    socket.onerror = function(error) {
-        console.error('WebSocket error:', error);
-        isConnected = false;
-        updateConnectionStatus();
-    };
-}
-
-// Initialize WebSocket connection
-initializeWebSocket();
-
 // Add resize handler
 window.addEventListener('resize', debounce(() => {
     initPsychroChart();
@@ -412,4 +392,36 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+function initializeManualControls() {
+    const inputToggle = document.getElementById('input-toggle');
+    const manualControls = document.getElementById('manual-controls');
+    const updateButton = document.getElementById('update-manual');
+
+    inputToggle.addEventListener('change', function() {
+        isManualMode = !this.checked;
+        manualControls.style.display = isManualMode ? 'block' : 'none';
+        document.getElementById('mode-text').textContent = 
+            isManualMode ? 'Manual Input' : 'Sensor Input';
+        
+        if (isManualMode) {
+            document.getElementById('manual-dry-bulb').value = DEFAULT_VALUES.dryBulb;
+            document.getElementById('manual-wet-bulb').value = DEFAULT_VALUES.wetBulb;
+            document.getElementById('manual-rh').value = DEFAULT_VALUES.relativeHumidity;
+        }
+    });
+
+    updateButton.addEventListener('click', function() {
+        if (isManualMode) {
+            const manualData = {
+                timestamp: new Date(),
+                dryBulb: parseFloat(document.getElementById('manual-dry-bulb').value),
+                wetBulb: parseFloat(document.getElementById('manual-wet-bulb').value),
+                relativeHumidity: parseFloat(document.getElementById('manual-rh').value)
+            };
+            updateCharts(manualData);
+            updateParameters(manualData);
+        }
+    });
 }
