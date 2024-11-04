@@ -1065,7 +1065,7 @@ function ViewModel() {
     self.savePng = () => saveSvgAsPng(document.getElementById("chartsvg"), "chart.png", { backgroundColor: "white" });
 
     // Initialize states with default or current input values
-    self.states = ko.observableArray([new StateTempω(self.maxTemp(), self.maxω(), "State 1", self.totalPressure())]);
+    // self.states = ko.observableArray([new StateTempω(self.maxTemp(), self.maxω(), "State 1", self.totalPressure())]);
 
     // Function to update state based on input data
     self.updateState = function(data) {
