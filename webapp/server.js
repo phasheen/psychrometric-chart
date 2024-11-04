@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const portPath = '/dev/ttyACM0';  // or your actual port
+const portPath = '/dev/tty.usbmodem11201';  // or your actual port
 const port = new SerialPort({ path: portPath, baudRate: 9600 });
 
 port.on('error', (err) => {
@@ -28,21 +28,40 @@ let latestData = {
 };
 
 parser.on('data', (data) => {
-    const [dryBulb, wetBulb, relativeHumidity, dewPoint, absoluteHumidity] = data.split(',').map(Number);
-    latestData = {
-        dryBulb,
-        wetBulb,
-        relativeHumidity,
-        dewPoint,
-        absoluteHumidity,
-        timestamp: new Date().toISOString()
-    };
-    
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(latestData));
+    try {
+        const values = data.split(',').map(Number);
+        if (values.length !== 5 || values.some(isNaN)) {
+            console.error('Invalid data format received:', data);
+            return;
         }
-    });
+
+        const [dryBulb, wetBulb, relativeHumidity, dewPoint, absoluteHumidity] = values;
+        
+        // Validate ranges
+        if (dryBulb < -50 || dryBulb > 100 || 
+            wetBulb < -50 || wetBulb > 100 || 
+            relativeHumidity < 0 || relativeHumidity > 100) {
+            console.error('Data out of valid range:', values);
+            return;
+        }
+
+        latestData = {
+            dryBulb,
+            wetBulb,
+            relativeHumidity,
+            dewPoint,
+            absoluteHumidity,
+            timestamp: new Date().toISOString()
+        };
+        
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(latestData));
+            }
+        });
+    } catch (error) {
+        console.error('Error processing sensor data:', error);
+    }
 });
 
 // Serve static files from the 'static' directory

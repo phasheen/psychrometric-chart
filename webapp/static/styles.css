@@ -6,42 +6,110 @@ body {
 }
 
 .container {
-    display: flex;
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    overflow: hidden;
-}
-
-.chart-container {
-    flex: 3;
     padding: 20px;
 }
 
-.controls-container {
-    flex: 1;
-    padding: 20px;
-    background-color: #f9f9f9;
-    border-left: 1px solid #e0e0e0;
+.main-content {
+    display: grid;
+    grid-template-columns: 2fr minmax(300px, 1fr);
+    gap: 20px;
+}
+
+.charts-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 #lineChart, #psychrometricChart {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    height: 600px;
+    position: relative;
+}
+
+#vizcontainer {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+#chartsvg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.controls-container {
+    min-width: 300px;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#parameters, #chartControls, #input-mode, #manual-controls {
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 4px;
+    background: #f8f9fa;
+}
+
+.status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 20px;
 }
 
-h2 {
-    margin-top: 0;
-    color: #333;
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #dc3545;
 }
 
-#parameters p, #chartControls p {
-    margin: 5px 0;
+.status-indicator.connected {
+    background: #28a745;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: #0056b3;
 }
 
 select {
     width: 100%;
-    padding: 5px;
-    margin-top: 5px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
