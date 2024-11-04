@@ -15,6 +15,9 @@ const DEFAULT_VALUES = {
 let isManualMode = false;
 let isConnected = false;
 
+let lastDataTime = Date.now();
+const CONNECTION_TIMEOUT = 5000; // 5 seconds timeout
+
 function initCharts() {
     // Destroy existing chart if it exists
     if (temperatureChart) {
@@ -195,6 +198,8 @@ function updateParameters(data) {
 function initializeWebSocket() {
     if (socket) {
         socket.close();
+        isConnected = false;
+        updateConnectionStatus();
     }
 
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -203,26 +208,40 @@ function initializeWebSocket() {
     try {
         socket = new WebSocket(wsUrl);
         
+        socket.onopen = function() {
+            console.log('WebSocket connection established');
+            isConnected = true;
+            updateConnectionStatus();
+        };
+
         socket.onmessage = function(event) {
             try {
-                const data = JSON.parse(event.data);
-                if (!isManualMode) {
-                    updateCharts(data);
-                    updateParameters(data);
+                lastDataTime = Date.now();
+                const message = JSON.parse(event.data);
+                
+                // Handle different message types
+                if (message.type === 'status') {
+                    isConnected = message.connected;
+                    updateConnectionStatus();
+                    if (!isConnected) {
+                        // Clear the current readings when disconnected
+                        ['dryBulb', 'wetBulb', 'relativeHumidity', 'dewPoint', 
+                         'absoluteHumidity', 'partialPressure', 'specificVolume', 'enthalpy']
+                            .forEach(id => document.getElementById(id).textContent = '---');
+                    }
+                } else if (message.type === 'data' && !isManualMode) {
+                    if (dataHistory.length === 0 || message.timestamp) {
+                        updateCharts(message);
+                        updateParameters(message);
+                    }
                 }
             } catch (error) {
                 console.error('Error processing WebSocket message:', error);
             }
         };
 
-        socket.onopen = function() {
-            console.log('WebSocket connected');
-            isConnected = true;
-            updateConnectionStatus();
-        };
-
         socket.onerror = function(error) {
-            console.error('WebSocket Error:', error);
+            console.error('WebSocket error:', error);
             isConnected = false;
             updateConnectionStatus();
         };
@@ -231,6 +250,7 @@ function initializeWebSocket() {
             console.log('WebSocket connection closed');
             isConnected = false;
             updateConnectionStatus();
+            // Try to reconnect after 5 seconds
             setTimeout(initializeWebSocket, 5000);
         };
     } catch (error) {
@@ -288,21 +308,23 @@ function initPsychroChart() {
 }
 
 function initializeWithDefaults() {
-    const defaultData = {
-        dryBulb: DEFAULT_VALUES.dryBulb,
-        wetBulb: DEFAULT_VALUES.wetBulb,
-        relativeHumidity: DEFAULT_VALUES.relativeHumidity,
-        timestamp: new Date()
-    };
-
     // Initialize charts first
     initCharts();
     
-    // Then update with default values
-    setTimeout(() => {
-        updateCharts(defaultData);
-        updateParameters(defaultData);
-    }, 100);
+    // Only set default values if we're not connected to the sensor
+    if (!isConnected) {
+        const defaultData = {
+            dryBulb: DEFAULT_VALUES.dryBulb,
+            wetBulb: DEFAULT_VALUES.wetBulb,
+            relativeHumidity: DEFAULT_VALUES.relativeHumidity,
+            timestamp: new Date()
+        };
+        
+        setTimeout(() => {
+            updateCharts(defaultData);
+            updateParameters(defaultData);
+        }, 100);
+    }
 }
 
 document.getElementById('input-toggle').addEventListener('change', function() {
@@ -343,7 +365,12 @@ window.addEventListener('load', function() {
         initCharts();
         initializeManualControls();
         initializeWebSocket();
-        initializeWithDefaults();
+        // Wait a bit before initializing with defaults to allow WebSocket to connect
+        setTimeout(() => {
+            if (!isConnected) {
+                initializeWithDefaults();
+            }
+        }, 1000);
         updateConnectionStatus();
     });
 });
@@ -424,3 +451,17 @@ function initializeManualControls() {
         }
     });
 }
+
+// Add this function to check connection status
+function checkConnection() {
+    if (isConnected && (Date.now() - lastDataTime > CONNECTION_TIMEOUT)) {
+        console.log('Connection timeout - no data received');
+        isConnected = false;
+        updateConnectionStatus();
+        // Try to reconnect
+        socket.close();
+    }
+}
+
+// Start the connection checker
+setInterval(checkConnection, 1000);
