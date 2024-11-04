@@ -440,14 +440,20 @@ function initializeManualControls() {
 
     updateButton.addEventListener('click', function() {
         if (isManualMode) {
-            const manualData = {
-                timestamp: new Date(),
-                dryBulb: parseFloat(document.getElementById('manual-dry-bulb').value),
-                wetBulb: parseFloat(document.getElementById('manual-wet-bulb').value),
-                relativeHumidity: parseFloat(document.getElementById('manual-rh').value)
-            };
-            updateCharts(manualData);
-            updateParameters(manualData);
+            updateManualCalculations();
+        }
+    });
+
+    // Add input event listeners for real-time updates
+    document.getElementById('manual-dry-bulb').addEventListener('input', function() {
+        if (isManualMode) {
+            updateManualCalculations();
+        }
+    });
+
+    document.getElementById('manual-wet-bulb').addEventListener('input', function() {
+        if (isManualMode) {
+            updateManualCalculations();
         }
     });
 }
@@ -465,3 +471,107 @@ function checkConnection() {
 
 // Start the connection checker
 setInterval(checkConnection, 1000);
+
+// Add psychrometric calculation functions
+function calculateRelativeHumidity(dryBulb, wetBulb) {
+    // Constants
+    const P_atm = 101325; // Atmospheric pressure (Pa)
+    
+    // Calculate saturation vapor pressures
+    const P_ws_dry = calculateSaturatedVaporPressure(dryBulb);
+    const P_ws_wet = calculateSaturatedVaporPressure(wetBulb);
+    
+    // Calculate actual vapor pressure using wet bulb
+    const W = 0.622 * (P_ws_wet - P_atm * (dryBulb - wetBulb) * 0.000662) / (P_atm - P_ws_wet);
+    const P_w = (P_atm * W) / (0.622 + W);
+    
+    return (P_w / P_ws_dry);
+}
+
+function calculateSaturatedVaporPressure(T) {
+    // Constants for T >= 0°C
+    const C1 = -5800.2206;
+    const C2 = 1.3914993;
+    const C3 = -0.048640239;
+    const C4 = 0.000041764768;
+    const C5 = -0.000000014452093;
+    const C7 = 6.5459673;
+    
+    const T_K = T + 273.15; // Convert to Kelvin
+    
+    return Math.exp(C1/T_K + C2 + C3*T_K + C4*Math.pow(T_K, 2) + 
+                   C5*Math.pow(T_K, 3) + C7*Math.log(T_K));
+}
+
+function calculateDewPoint(dryBulb, wetBulb) {
+    const rh = calculateRelativeHumidity(dryBulb, wetBulb);
+    const P_ws = calculateSaturatedVaporPressure(dryBulb);
+    const P_w = rh * P_ws;
+    
+    // Inverse of saturated vapor pressure calculation
+    // Using approximation method
+    let Td = dryBulb;
+    const epsilon = 0.001;
+    let delta = 1;
+    
+    while (Math.abs(delta) > epsilon) {
+        const P_ws_d = calculateSaturatedVaporPressure(Td);
+        delta = (P_ws_d - P_w) / 100;
+        Td -= delta;
+    }
+    
+    return Td;
+}
+
+function calculateAbsoluteHumidity(dryBulb, wetBulb) {
+    const P_atm = 101325; // Atmospheric pressure (Pa)
+    const rh = calculateRelativeHumidity(dryBulb, wetBulb);
+    const P_ws = calculateSaturatedVaporPressure(dryBulb);
+    const P_w = rh * P_ws;
+    
+    return 0.622 * P_w / (P_atm - P_w);
+}
+
+function calculatePartialPressure(dryBulb, wetBulb) {
+    const rh = calculateRelativeHumidity(dryBulb, wetBulb);
+    const P_ws = calculateSaturatedVaporPressure(dryBulb);
+    return rh * P_ws;
+}
+
+function calculateSpecificVolume(dryBulb, absoluteHumidity) {
+    const P_atm = 101325; // Pa
+    const R = 287.055; // Gas constant for dry air (J/kg·K)
+    return R * (dryBulb + 273.15) * (1 + 1.6078 * absoluteHumidity) / P_atm;
+}
+
+function calculateEnthalpy(dryBulb, absoluteHumidity) {
+    return 1.006 * dryBulb + absoluteHumidity * (2501 + 1.805 * dryBulb);
+}
+
+// Modify the manual control update handler
+function updateManualCalculations() {
+    const dryBulb = parseFloat(document.getElementById('manual-dry-bulb').value);
+    const wetBulb = parseFloat(document.getElementById('manual-wet-bulb').value);
+    
+    const relativeHumidity = calculateRelativeHumidity(dryBulb, wetBulb) * 100;
+    const absoluteHumidity = calculateAbsoluteHumidity(dryBulb, wetBulb);
+    const dewPoint = calculateDewPoint(dryBulb, wetBulb);
+    const partialPressure = calculatePartialPressure(dryBulb, wetBulb);
+    const specificVolume = calculateSpecificVolume(dryBulb, absoluteHumidity);
+    const enthalpy = calculateEnthalpy(dryBulb, absoluteHumidity);
+
+    const manualData = {
+        timestamp: new Date(),
+        dryBulb: dryBulb,
+        wetBulb: wetBulb,
+        relativeHumidity: relativeHumidity,
+        dewPoint: dewPoint,
+        absoluteHumidity: absoluteHumidity,
+        partialPressure: partialPressure,
+        specificVolume: specificVolume,
+        enthalpy: enthalpy
+    };
+    
+    updateCharts(manualData);
+    updateParameters(manualData);
+}
