@@ -36,9 +36,9 @@ void loop() {
     }
 
     Serial.print("Raw Readings - Dry: ");
-    Serial.print(dryBulbTemp);
+    Serial.print(dryBulbTemp, 2);  // 2 decimal places
     Serial.print("°C, Wet: ");
-    Serial.print(wetBulbTemp);
+    Serial.print(wetBulbTemp, 2);  // 2 decimal places
     Serial.println("°C");
 
     // Perform calculations
@@ -49,16 +49,33 @@ void loop() {
     float specificVolume = envCalc.calculateSpecificVolume(dryBulbTemp, absoluteHumidity);
     float enthalpy = envCalc.calculateEnthalpy(dryBulbTemp, absoluteHumidity);
 
-    // Print calculated values
+    // Print calculated values with increased precision
     Serial.println("\nCalculated Values:");
-    Serial.print("Relative Humidity: "); Serial.print(relativeHumidity * 100); Serial.println("%");
-    Serial.print("Absolute Humidity: "); Serial.print(absoluteHumidity, 5); Serial.println(" kg/kg");
-    Serial.print("Dew Point: "); Serial.print(dewPoint); Serial.println("°C");
-    Serial.print("Partial Pressure: "); Serial.print(partialPressure); Serial.println(" Pa");
-    Serial.print("Specific Volume: "); Serial.print(specificVolume); Serial.println(" m³/kg");
-    Serial.print("Enthalpy: "); Serial.print(enthalpy); Serial.println(" kJ/kg");
+    Serial.print("Relative Humidity: "); 
+    Serial.print(relativeHumidity * 100, 2); 
+    Serial.println("%");
+    
+    Serial.print("Absolute Humidity: "); 
+    Serial.print(absoluteHumidity, 5); 
+    Serial.println(" kg/kg");
+    
+    Serial.print("Dew Point: "); 
+    Serial.print(dewPoint, 2); 
+    Serial.println("°C");
+    
+    Serial.print("Partial Pressure: "); 
+    Serial.print(partialPressure, 2); 
+    Serial.println(" Pa");
+    
+    Serial.print("Specific Volume: "); 
+    Serial.print(specificVolume, 3); 
+    Serial.println(" m³/kg");
+    
+    Serial.print("Enthalpy: "); 
+    Serial.print(enthalpy, 2); 
+    Serial.println(" kJ/kg");
 
-    // Send formatted data string
+    // Send formatted data string with full precision
     dataTransmitter.sendData(dryBulbTemp, wetBulbTemp, relativeHumidity, 
                            dewPoint, absoluteHumidity, partialPressure, 
                            specificVolume, enthalpy);

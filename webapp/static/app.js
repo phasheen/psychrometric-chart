@@ -162,23 +162,23 @@ function updateParameters(data) {
             throw new Error('Invalid data types for calculations');
         }
 
-        // Update display values with all parameters
+        // Update display values with all parameters and more decimal places
         document.getElementById('dryBulb').textContent = 
-            (data.dryBulb?.toFixed(1) ?? '---');
+            (data.dryBulb?.toFixed(2) ?? '---');
         document.getElementById('wetBulb').textContent = 
-            (data.wetBulb?.toFixed(1) ?? '---');
+            (data.wetBulb?.toFixed(2) ?? '---');
         document.getElementById('relativeHumidity').textContent = 
-            (data.relativeHumidity?.toFixed(1) ?? '---');
+            (data.relativeHumidity?.toFixed(2) ?? '---');
         document.getElementById('dewPoint').textContent = 
-            (data.dewPoint?.toFixed(1) ?? '---');
+            (data.dewPoint?.toFixed(2) ?? '---');
         document.getElementById('absoluteHumidity').textContent = 
-            (data.absoluteHumidity?.toFixed(3) ?? '---');
+            (data.absoluteHumidity?.toFixed(5) ?? '---'); // 5 decimal places for kg/kg
         document.getElementById('partialPressure').textContent = 
-            (data.partialPressure?.toFixed(1) ?? '---');
+            (data.partialPressure?.toFixed(2) ?? '---');
         document.getElementById('specificVolume').textContent = 
             (data.specificVolume?.toFixed(3) ?? '---');
         document.getElementById('enthalpy').textContent = 
-            (data.enthalpy?.toFixed(1) ?? '---');
+            (data.enthalpy?.toFixed(2) ?? '---');
         
         if (data.timestamp) {
             document.getElementById('timestamp').textContent = 
@@ -186,7 +186,6 @@ function updateParameters(data) {
         }
     } catch (error) {
         console.error('Error updating parameters:', error.message);
-        // Set display values to error state
         ['dryBulb', 'wetBulb', 'relativeHumidity', 'dewPoint', 
          'absoluteHumidity', 'partialPressure', 'specificVolume', 'enthalpy']
             .forEach(id => document.getElementById(id).textContent = '---');

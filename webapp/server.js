@@ -84,14 +84,14 @@ parser.on('data', (data) => {
         }
 
         latestData = {
-            dryBulb,
-            wetBulb,
-            relativeHumidity: relativeHumidity * 100, // Convert from fraction to percentage
-            dewPoint,
-            absoluteHumidity,
-            partialPressure,
-            specificVolume,
-            enthalpy,
+            dryBulb: parseFloat(dryBulb.toFixed(2)),
+            wetBulb: parseFloat(wetBulb.toFixed(2)),
+            relativeHumidity: parseFloat((relativeHumidity * 100).toFixed(2)), // Convert from fraction to percentage
+            dewPoint: parseFloat(dewPoint.toFixed(2)),
+            absoluteHumidity: parseFloat(absoluteHumidity.toFixed(5)), // Keep 5 decimal places for kg/kg
+            partialPressure: parseFloat(partialPressure.toFixed(2)),
+            specificVolume: parseFloat(specificVolume.toFixed(3)),
+            enthalpy: parseFloat(enthalpy.toFixed(2)),
             timestamp: new Date().toISOString()
         };
         
