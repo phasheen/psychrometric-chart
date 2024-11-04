@@ -231,8 +231,8 @@ function dPvdT(rh, temp) {
     return rh * satPressFromTempIp(temp) * term1;
 }
 
-var pixelWidth = 1500;
-var pixelHeight = 700;
+var pixelWidth = 950;
+var pixelHeight = 750;
 var xCanvasRange = [
     (xOffsetPercentLeft * pixelWidth) / 100,
     pixelWidth - (xOffsetPercentRight * pixelWidth) / 100
@@ -384,7 +384,7 @@ function ViewModel() {
     self.xScale = ko.computed(() => {
         return d3.scaleLinear()
             .domain([minTemp, self.maxTemp()])
-            .range([50, 750]);
+            .range([50, pixelWidth - 100]);
     });
 
     self.pixelsPerTemp = ko.pureComputed(() => self.xScale()(1) - self.xScale()(0));
@@ -400,7 +400,7 @@ function ViewModel() {
     self.yScale = ko.computed(() => {
         return d3.scaleLinear()
             .domain([0, self.maxPv()])
-            .range([550, 50]);
+            .range([pixelHeight - 50, 50]);
     });
 
     self.yAxis = ko.pureComputed(() => {
@@ -1144,28 +1144,28 @@ function ViewModel() {
     self.xScale = ko.computed(() => {
         return d3.scaleLinear()
             .domain([minTemp, self.maxTemp()]) // minTemp is 32°F
-            .range([50, 750]); // Horizontal range in pixels
+            .range([50, pixelWidth - 100]); // Horizontal range in pixels
     });
 
     self.yScale = ko.computed(() => {
         return d3.scaleLinear()
             .domain([0, self.maxHumidityRatio()])
-            .range([550, 50]); // Inverted vertical range in pixels
+            .range([pixelHeight - 50, 50]); // Inverted vertical range in pixels
     });
 
-    // Add debug group for visualization boundaries
-    window.svg.append("g")
-        .attr("class", "debug-boundaries")
-        .call(g => {
-            g.append("rect")
-                .attr("x", 50)
-                .attr("y", 50)
-                .attr("width", 700)
-                .attr("height", 500)
-                .attr("fill", "none")
-                .attr("stroke", "#ccc")
-                .attr("stroke-dasharray", "2,2");
-        });
+    // // Add debug group for visualization boundaries
+    // window.svg.append("g")
+    //     .attr("class", "debug-boundaries")
+    //     .call(g => {
+    //         g.append("rect")
+    //             .attr("x", 50)
+    //             .attr("y", 50)
+    //             .attr("width", 700)
+    //             .attr("height", 500)
+    //             .attr("fill", "none")
+    //             .attr("stroke", "#ccc")
+    //             .attr("stroke-dasharray", "2,2");
+    //     });
 
     // Update the state point rendering
     self.statePoints = window.svg.append("g")
@@ -1208,6 +1208,10 @@ function ViewModel() {
             });
         }
     });
+
+    // Add viewBox to make it responsive
+    svg.attr("viewBox", `0 0 ${pixelWidth} ${pixelHeight}`)
+       .attr("preserveAspectRatio", "xMidYMid meet");
 
 }
 

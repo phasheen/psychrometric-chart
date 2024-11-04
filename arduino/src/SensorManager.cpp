@@ -7,14 +7,23 @@
 SensorManager::SensorManager() : oneWire(ONE_WIRE_BUS), sensors(&oneWire) {}
 
 void SensorManager::begin() {
+    Serial.println("Initializing sensors...");
     sensors.begin();
 
+    // Count devices
+    int deviceCount = sensors.getDeviceCount();
+    Serial.print("Found ");
+    Serial.print(deviceCount);
+    Serial.println(" devices.");
+
     if (!sensors.getAddress(dryBulbAddress, DRY_BULB_SENSOR_INDEX)) {
-        Serial.println("Unable to find address for Dry Bulb Sensor");
+        Serial.println("ERROR: Unable to find address for Dry Bulb Sensor");
+        return;
     }
 
     if (!sensors.getAddress(wetBulbAddress, WET_BULB_SENSOR_INDEX)) {
-        Serial.println("Unable to find address for Wet Bulb Sensor");
+        Serial.println("ERROR: Unable to find address for Wet Bulb Sensor");
+        return;
     }
 
     Serial.print("Dry Bulb Sensor Address: ");
@@ -27,15 +36,26 @@ void SensorManager::begin() {
 
     sensors.setResolution(dryBulbAddress, 12);
     sensors.setResolution(wetBulbAddress, 12);
+
+    // Request initial temperature reading
+    Serial.println("Requesting initial temperatures...");
+    sensors.requestTemperatures();
+    delay(1000); // Allow sensors to stabilize
+    
+    // Print initial readings
+    float dryTemp = getDryBulbTemperature();
+    float wetTemp = getWetBulbTemperature();
+    Serial.print("Initial Dry Bulb Temperature: ");
+    Serial.println(dryTemp);
+    Serial.print("Initial Wet Bulb Temperature: ");
+    Serial.println(wetTemp);
 }
 
 float SensorManager::getDryBulbTemperature() {
-    sensors.requestTemperatures();
     return sensors.getTempC(dryBulbAddress);
 }
 
 float SensorManager::getWetBulbTemperature() {
-    sensors.requestTemperatures();
     return sensors.getTempC(wetBulbAddress);
 }
 

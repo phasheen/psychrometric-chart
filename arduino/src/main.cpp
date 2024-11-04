@@ -9,42 +9,59 @@ DataTransmitter dataTransmitter;
 
 void setup() {
     Serial.begin(9600);
+    delay(1000);  // Give serial connection time to establish
+    
+    Serial.println("Starting setup...");
     sensorManager.begin();
     dataTransmitter.begin();
+    Serial.println("Setup complete!");
 }
 
 void loop() {
-    // Read sensor data from the sensors
+    Serial.println("\n--- New Reading ---");
+    
+    // Request temperatures once for both sensors
+    Serial.println("Requesting temperatures...");
+    sensorManager.sensors.requestTemperatures();
+    
+    // Read sensor data
     float dryBulbTemp = sensorManager.getDryBulbTemperature();
     float wetBulbTemp = sensorManager.getWetBulbTemperature();
 
+    // Add error checking
+    if (dryBulbTemp == DEVICE_DISCONNECTED_C || wetBulbTemp == DEVICE_DISCONNECTED_C) {
+        Serial.println("Error: Sensor reading failed");
+        delay(2000);
+        return;
+    }
+
+    Serial.print("Raw Readings - Dry: ");
+    Serial.print(dryBulbTemp);
+    Serial.print("°C, Wet: ");
+    Serial.print(wetBulbTemp);
+    Serial.println("°C");
+
     // Perform calculations
     float relativeHumidity = envCalc.calculateRelativeHumidity(dryBulbTemp, wetBulbTemp);
-    float dewPoint = envCalc.calculateDewPoint(dryBulbTemp, relativeHumidity);
-    float absoluteHumidity = envCalc.calculateAbsoluteHumidity(dryBulbTemp, relativeHumidity);
-    float partialPressure = envCalc.calculatePartialPressure(dryBulbTemp, relativeHumidity);
+    float absoluteHumidity = envCalc.calculateAbsoluteHumidity(dryBulbTemp, wetBulbTemp);
+    float dewPoint = envCalc.calculateDewPoint(dryBulbTemp, wetBulbTemp);
+    float partialPressure = envCalc.calculatePartialPressure(dryBulbTemp, wetBulbTemp);
     float specificVolume = envCalc.calculateSpecificVolume(dryBulbTemp, absoluteHumidity);
     float enthalpy = envCalc.calculateEnthalpy(dryBulbTemp, absoluteHumidity);
 
-    // Send data in a specific format that starts with "DATA:" to distinguish it from debug output
-    Serial.print("DATA:");
-    Serial.print(dryBulbTemp); Serial.print(",");
-    Serial.print(wetBulbTemp); Serial.print(",");
-    Serial.print(relativeHumidity); Serial.print(",");
-    Serial.print(dewPoint); Serial.print(",");
-    Serial.print(absoluteHumidity); Serial.print(",");
-    Serial.print(partialPressure); Serial.print(",");
-    Serial.print(specificVolume); Serial.print(",");
-    Serial.println(enthalpy);
+    // Print calculated values
+    Serial.println("\nCalculated Values:");
+    Serial.print("Relative Humidity: "); Serial.print(relativeHumidity * 100); Serial.println("%");
+    Serial.print("Absolute Humidity: "); Serial.print(absoluteHumidity, 5); Serial.println(" kg/kg");
+    Serial.print("Dew Point: "); Serial.print(dewPoint); Serial.println("°C");
+    Serial.print("Partial Pressure: "); Serial.print(partialPressure); Serial.println(" Pa");
+    Serial.print("Specific Volume: "); Serial.print(specificVolume); Serial.println(" m³/kg");
+    Serial.print("Enthalpy: "); Serial.print(enthalpy); Serial.println(" kJ/kg");
 
-    // Debug output (optional)
-    Serial.println("Environmental Calculations Results:");
-    Serial.print(" - Absolute Humidity: "); Serial.print(absoluteHumidity); Serial.println(" kg/kg");
-    Serial.print(" - Relative Humidity: "); Serial.print(relativeHumidity); Serial.println(" (fraction)"); 
-    Serial.print(" - Partial Pressure of Humid Air: "); Serial.print(partialPressure); Serial.println(" Pa");
-    Serial.print(" - Specific Volume: "); Serial.print(specificVolume); Serial.println(" m^3/kg");
-    Serial.print(" - Enthalpy: "); Serial.print(enthalpy); Serial.println(" kJ/kg");
-    Serial.print(" - Dew-point Temperature: "); Serial.print(dewPoint); Serial.println(" °C");
+    // Send formatted data string
+    dataTransmitter.sendData(dryBulbTemp, wetBulbTemp, relativeHumidity, 
+                           dewPoint, absoluteHumidity, partialPressure, 
+                           specificVolume, enthalpy);
 
-    delay(2000);
+    delay(2000);  // Wait 2 seconds before next reading
 }

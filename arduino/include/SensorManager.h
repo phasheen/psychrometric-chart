@@ -11,10 +11,10 @@ public:
     void begin();
     float getDryBulbTemperature();
     float getWetBulbTemperature();
+    DallasTemperature sensors;
 
 private:
     OneWire oneWire;
-    DallasTemperature sensors;
     DeviceAddress dryBulbAddress, wetBulbAddress;
     void printAddress(DeviceAddress deviceAddress);
 };

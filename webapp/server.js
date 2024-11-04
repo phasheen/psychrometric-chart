@@ -12,7 +12,7 @@ const wss = new WebSocket.Server({
     path: '/ws'
 });
 
-const portPath = '/dev/tty.usbmodem11201';  // or your actual port
+const portPath = '/dev/tty.usbmodem1201';  // or your actual port
 const port = new SerialPort({ path: portPath, baudRate: 9600 });
 
 port.on('error', (err) => {
@@ -45,21 +45,23 @@ parser.on('data', (data) => {
     try {
         // Trim whitespace and check if the data is not empty
         const trimmedData = data.trim();
-        // console.log('Raw data received:', trimmedData);
+        console.log('Raw data received:', trimmedData);
         
         if (trimmedData === '') {
             return; // Ignore empty lines
         }
 
         // Skip debug output lines
-        if (trimmedData.includes('Environmental Calculations Results') || 
-            trimmedData.includes('Sensor Address') ||
-            trimmedData.includes('Absolute Humidity') ||
-            trimmedData.includes('Relative Humidity') ||
-            trimmedData.includes('Partial Pressure') ||
-            trimmedData.includes('Specific Volume') ||
-            trimmedData.includes('Enthalpy') ||
-            trimmedData.includes('Dew-point')) {
+        if (trimmedData.includes('New Reading') || 
+            trimmedData.includes('Requesting temperatures') ||
+            trimmedData.includes('Raw Readings') ||
+            trimmedData.includes('Calculated Values:') ||
+            trimmedData.includes('Relative Humidity:') ||
+            trimmedData.includes('Absolute Humidity:') ||
+            trimmedData.includes('Dew Point:') ||
+            trimmedData.includes('Partial Pressure:') ||
+            trimmedData.includes('Specific Volume:') ||
+            trimmedData.includes('Enthalpy:')) {
             return;
         }
 
@@ -76,7 +78,7 @@ parser.on('data', (data) => {
         // Validate ranges
         if (dryBulb < -50 || dryBulb > 100 || 
             wetBulb < -50 || wetBulb > 100 || 
-            relativeHumidity < 0 || relativeHumidity > 100) {
+            relativeHumidity < 0 || relativeHumidity > 1) {
             console.error('Data out of valid range:', values);
             return;
         }
