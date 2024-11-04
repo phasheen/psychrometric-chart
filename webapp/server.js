@@ -7,7 +7,10 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ 
+    server: server,
+    path: '/ws'
+});
 
 const portPath = '/dev/tty.usbmodem11201';  // or your actual port
 const port = new SerialPort({ path: portPath, baudRate: 9600 });

@@ -48,6 +48,7 @@ function initCharts() {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 x: {
                     type: 'time',
@@ -73,6 +74,12 @@ function initCharts() {
 }
 
 function updateCharts(data) {
+    // Add null check at the start
+    if (!data) {
+        console.warn('No data provided to updateCharts');
+        return;
+    }
+
     // Add validation and logging
     if (!data || typeof data.dryBulb !== 'number' || typeof data.relativeHumidity !== 'number') {
         console.warn('Invalid data received:', data);
@@ -153,14 +160,19 @@ socket.onmessage = function(event) {
 
 socket.onerror = function(error) {
     console.error('WebSocket Error:', error);
+    isConnected = false;
+    updateConnectionStatus();
 };
 
 socket.onclose = function(event) {
     console.log('WebSocket connection closed:', event.code, event.reason);
+    isConnected = false;
+    updateConnectionStatus();
+    
+    // Implement reconnection logic
     setTimeout(function() {
         console.log('Attempting to reconnect...');
-        socket = new WebSocket('ws://' + location.host);
-        // Re-attach event handlers
+        initializeWebSocket(); // Create a function to handle WebSocket initialization
     }, 5000);
 };
 
@@ -172,39 +184,40 @@ document.getElementById('timeRange').addEventListener('change', function() {
 });
 
 function initPsychroChart() {
-    console.log('Initializing psychrometric chart...');
-    
-    const container = document.getElementById('vizcontainer');
-    if (!container) {
-        console.error('Psychrometric chart container not found');
-        return;
-    }
-
     try {
-        // Clear any existing content
-        container.innerHTML = '<svg id="chartsvg"></svg>';
+        // Remove any existing bindings
+        if (window.viewModel) {
+            ko.cleanNode(document.getElementById('vizcontainer'));
+        }
         
-        // Initialize SVG with wider dimensions
-        window.svg = d3.select("#chartsvg")
-            .attr("width", "100%")
-            .attr("height", "100%")
-            .attr("viewBox", "-40 -20 1080 640") // Made wider by increasing the width from 880 to 1080
-            .attr("preserveAspectRatio", "xMidYMid meet");
-
-        // Add a background for debugging
-        window.svg.append("rect")
-            .attr("x", 0)
-            .attr("y", 0)
-            .attr("width", 1000) // Increased from 800 to 1000
-            .attr("height", 600)
-            .attr("fill", "none")
-            .attr("stroke", "#ddd");
-
-        // Initialize new viewModel
-        window.viewModel = new ViewModel();
-        ko.applyBindings(window.viewModel, container);
-
-        console.log('Psychrometric chart initialized successfully');
+        const container = document.getElementById('psychrometricChart');
+        const svg = document.getElementById('chartsvg');
+        
+        // Important: Wait for container to be properly sized
+        if (!container.clientWidth) {
+            requestAnimationFrame(() => initPsychroChart());
+            return;
+        }
+        
+        // Calculate dimensions maintaining aspect ratio
+        const width = container.clientWidth - 40;  // Account for padding
+        const height = width * 0.75;  // 4:3 aspect ratio
+        
+        // Update SVG dimensions
+        svg.style.width = `${width}px`;
+        svg.style.height = `${height}px`;
+        
+        // Set viewBox to match the actual dimensions
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
+        
+        // Clear existing content
+        svg.innerHTML = '';
+        
+        // Initialize the view model with the correct dimensions
+        window.viewModel = new ViewModel(width, height);
+        ko.applyBindings(window.viewModel, document.getElementById('vizcontainer'));
+        
     } catch (error) {
         console.error('Error initializing psychrometric chart:', error);
     }
@@ -253,13 +266,13 @@ function updateConnectionStatus() {
 
 // Initialize with defaults when page loads
 window.addEventListener('load', function() {
-    // Make sure DOM is fully loaded before initialization
-    setTimeout(() => {
+    // Make sure DOM is fully loaded and sized before initialization
+    requestAnimationFrame(() => {
         initCharts();
         initializeManualControls();
         initializeWithDefaults();
         updateConnectionStatus();
-    }, 100);
+    });
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -348,4 +361,55 @@ function calculateAbsoluteHumidity(dryBulb, relativeHumidity) {
     
     // Calculate absolute humidity (kg/m³)
     return (0.622 * e) / (0.01 * (273.15 + dryBulb));
+}
+
+// Update WebSocket connection code
+function initializeWebSocket() {
+    if (location.protocol === 'https:') {
+        socket = new WebSocket('wss://' + location.host + '/ws');
+    } else {
+        socket = new WebSocket('ws://' + location.host + '/ws');
+    }
+
+    socket.onopen = function() {
+        console.log('WebSocket connected');
+        isConnected = true;
+        updateConnectionStatus();
+    };
+
+    socket.onclose = function(event) {
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        isConnected = false;
+        updateConnectionStatus();
+        
+        // Attempt to reconnect
+        setTimeout(initializeWebSocket, 5000);
+    };
+
+    socket.onerror = function(error) {
+        console.error('WebSocket error:', error);
+        isConnected = false;
+        updateConnectionStatus();
+    };
+}
+
+// Initialize WebSocket connection
+initializeWebSocket();
+
+// Add resize handler
+window.addEventListener('resize', debounce(() => {
+    initPsychroChart();
+}, 250));
+
+// Utility function for debouncing
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }

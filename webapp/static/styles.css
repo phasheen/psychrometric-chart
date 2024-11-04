@@ -9,48 +9,71 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
+    box-sizing: border-box;
 }
 
 .main-content {
     display: grid;
-    grid-template-columns: 2fr minmax(300px, 1fr);
+    grid-template-columns: minmax(0, 1fr) 300px;
     gap: 20px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .charts-section {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    width: 100%;
+    min-width: 0;
 }
 
-#lineChart, #psychrometricChart {
+#lineChart {
     background: white;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    height: 600px;
+    height: 300px;
+    width: 100%;
     position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#psychrometricChart {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 100%;
+    position: relative;
+    box-sizing: border-box;
+}
+
+#temperatureChart {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 #vizcontainer {
     width: 100%;
-    height: 100%;
     position: relative;
-    overflow: hidden;
 }
 
 #chartsvg {
-    width: 100%;
-    height: 100%;
     display: block;
+    width: 100%;
+    height: auto;
 }
 
 .controls-container {
+    width: 300px;
     min-width: 300px;
     background: white;
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-sizing: border-box;
 }
 
 #parameters, #chartControls, #input-mode, #manual-controls {
