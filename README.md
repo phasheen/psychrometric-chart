@@ -17,11 +17,29 @@ The team members are:
 - [References](#references)
 
 ## How to Use
-TODO: Add step-by-step explanation of how to use the hardware, and how it works. Maybe, it should include the equation used in the software.
-- Mode option: Stand alone or Desktop mode
 ```
-python app.py
+node server.js
 ```
+
+```
+brew services restart nginx
+```
+
+```
+cloudflared tunnel run psychrometric-chart
+```
+
+
+### cloudflared config
+
+
+~/.cloudflared/config.yml
+
+
+### nginx config
+
+/opt/homebrew/etc/nginx/nginx.conf
+
 ## Hardware Design
 ### Hardware Parts List
 The following lists contain the link to buy (Coupang).
@@ -38,3 +56,4 @@ This project was funded by Prof. Ghiseok Kim from Lab of Physical Properties and
 
 ## References
 - https://git.snuphel.com/yudha/psychrometricinstrument
+- https://github.com/mitchpaulus/psychrometric-chart
