@@ -53,6 +53,39 @@ The following lists contain the link to buy (Coupang).
 
 ## Software Design
 ![software](resources/software.png)
+
+
+### Sample data
+```
+Server is running on port 3000
+Serial port opened successfully
+Raw data received: Dry Bulb Sensor Address: 28616434CDA6C550
+Raw data received: Wet Bulb Sensor Address: 286164348C3691B3
+Raw data received: --- New Reading ---
+Raw data received: Requesting temperatures...
+Raw data received: Raw Readings - Dry: 22.19°C, Wet: 13.94°C
+Raw data received: Calculated Values:
+Raw data received: Relative Humidity: 39.41%
+Raw data received: Absolute Humidity: 0.00657 kg/kg
+Raw data received: Dew Point: 7.75°C
+Raw data received: Partial Pressure: 1054.49 Pa
+Raw data received: Specific Volume: 0.846 m³/kg
+Raw data received: Enthalpy: 39.01 kJ/kg
+Raw data received: 22.19,13.94,0.3941,7.75,0.00657,1054.49,0.846,39.01
+
+Processed data: {
+  type: 'data',
+  dryBulb: 22.19,
+  wetBulb: 13.94,
+  relativeHumidity: 39.41,
+  dewPoint: 7.75,
+  absoluteHumidity: 0.00657,
+  partialPressure: 1054.49,
+  specificVolume: 0.846,
+  enthalpy: 39.01,
+  timestamp: '2024-11-05T01:17:38.914Z'
+}
+```
 ## Acknowledgement
 This project was funded by Prof. Ghiseok Kim from Lab of Physical Properties and Process Engineering of Agricultural Products ([SNUPHEL](https://snuphel.snu.ac.kr/)).
 
