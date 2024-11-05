@@ -18,6 +18,18 @@ let isConnected = false;
 let lastDataTime = Date.now();
 const CONNECTION_TIMEOUT = 5000; // 5 seconds timeout
 
+const TIME_RANGES = {
+    '1min': 1,
+    '15min': 15,
+    '1hr': 60,
+    '10hr': 600,
+    'custom': null
+};
+
+let currentTimeRange = 15; // Default to 15 minutes in minutes
+
+let intentionalClose = false;  // Add this flag at the top with other globals
+
 function initCharts() {
     // Destroy existing chart if it exists
     if (temperatureChart) {
@@ -92,36 +104,36 @@ function updateCharts(data) {
     console.log('Updating charts with data:', data);
 
     const timestamp = new Date(data.timestamp || new Date());
-    dataHistory.push({...data, timestamp});
     
-    // Limit history size
-    if (dataHistory.length > 1000) dataHistory.shift();
+    // Update temperature chart with the current data point
+    temperatureChart.data.datasets[0].data.push({
+        x: timestamp,
+        y: Number(data.dryBulb)
+    });
+    temperatureChart.data.datasets[1].data.push({
+        x: timestamp,
+        y: Number(data.wetBulb)
+    });
 
-    // Update temperature chart
-    const timeRange = document.getElementById('timeRange').value;
-    const filteredData = filterDataByTimeRange(timeRange);
+    // Keep only the last 1000 points in the chart
+    if (temperatureChart.data.datasets[0].data.length > 1000) {
+        temperatureChart.data.datasets[0].data.shift();
+        temperatureChart.data.datasets[1].data.shift();
+    }
     
     // Calculate dynamic y-axis range
-    const temperatures = filteredData.flatMap(d => [d.dryBulb, d.wetBulb]);
-    const maxTemp = Math.max(...temperatures, data.dryBulb, data.wetBulb);
-    const minTemp = Math.min(...temperatures, data.dryBulb, data.wetBulb);
+    const temperatures = temperatureChart.data.datasets.flatMap(dataset => 
+        dataset.data.map(point => point.y)
+    );
+    const maxTemp = Math.max(...temperatures);
+    const minTemp = Math.min(...temperatures);
     const padding = 1;
 
     // Update temperature chart scales
     temperatureChart.options.scales.y.min = Math.floor(minTemp - padding);
     temperatureChart.options.scales.y.max = Math.ceil(maxTemp + padding);
     
-    // Update datasets
-    temperatureChart.data.datasets[0].data = filteredData.map(d => ({
-        x: d.timestamp,
-        y: Number(d.dryBulb)
-    }));
-    temperatureChart.data.datasets[1].data = filteredData.map(d => ({
-        x: d.timestamp,
-        y: Number(d.wetBulb)
-    }));
-    
-    temperatureChart.update(); // Update with default animation
+    temperatureChart.update(); // Update without animation for real-time data
 
     // Update psychrometric chart
     if (window.viewModel) {
@@ -138,19 +150,6 @@ function updateCharts(data) {
 
     // Update readings
     updateParameters(data);
-}
-
-function filterDataByTimeRange(range) {
-    const now = new Date();
-    let threshold;
-    switch(range) {
-        case '1h': threshold = new Date(now - 60 * 60 * 1000); break;
-        case '6h': threshold = new Date(now - 6 * 60 * 60 * 1000); break;
-        case '24h': threshold = new Date(now - 24 * 60 * 60 * 1000); break;
-        case '7d': threshold = new Date(now - 7 * 24 * 60 * 60 * 1000); break;
-        default: return dataHistory;
-    }
-    return dataHistory.filter(d => d.timestamp >= threshold);
 }
 
 function updateParameters(data) {
@@ -197,9 +196,10 @@ function updateParameters(data) {
 
 function initializeWebSocket() {
     if (socket) {
+        intentionalClose = true;  // Set flag before closing
         socket.close();
         isConnected = false;
-        updateConnectionStatus();
+        updateConnectionStatus(false);
     }
 
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -207,11 +207,13 @@ function initializeWebSocket() {
     
     try {
         socket = new WebSocket(wsUrl);
+        intentionalClose = false;  // Reset flag after new connection attempt
         
         socket.onopen = function() {
             console.log('WebSocket connection established');
+            lastDataTime = Date.now(); // Reset the timeout counter when connected
             isConnected = true;
-            updateConnectionStatus();
+            updateConnectionStatus(true);
         };
 
         socket.onmessage = function(event) {
@@ -219,17 +221,17 @@ function initializeWebSocket() {
                 lastDataTime = Date.now();
                 const message = JSON.parse(event.data);
                 
-                // Handle different message types
                 if (message.type === 'status') {
-                    isConnected = message.connected;
-                    updateConnectionStatus();
-                    if (!isConnected) {
-                        // Clear the current readings when disconnected
-                        ['dryBulb', 'wetBulb', 'relativeHumidity', 'dewPoint', 
-                         'absoluteHumidity', 'partialPressure', 'specificVolume', 'enthalpy']
-                            .forEach(id => document.getElementById(id).textContent = '---');
+                    if (isConnected !== message.connected) {
+                        isConnected = message.connected;
+                        updateConnectionStatus(message.connected);
                     }
-                } else if (message.type === 'data' && !isManualMode) {
+                    return;
+                }
+                
+                // Handle data message
+                if (message.type === 'data' && !isManualMode) {
+                    // Only update display with sensor data when not in manual mode
                     if (dataHistory.length === 0 || message.timestamp) {
                         updateCharts(message);
                         updateParameters(message);
@@ -243,29 +245,29 @@ function initializeWebSocket() {
         socket.onerror = function(error) {
             console.error('WebSocket error:', error);
             isConnected = false;
-            updateConnectionStatus();
+            updateConnectionStatus(false);
         };
 
         socket.onclose = function() {
             console.log('WebSocket connection closed');
             isConnected = false;
-            updateConnectionStatus();
-            // Try to reconnect after 5 seconds
-            setTimeout(initializeWebSocket, 5000);
+            updateConnectionStatus(false);
+            
+            // Only attempt to reconnect if the closure wasn't intentional
+            // and we haven't received data recently
+            if (!intentionalClose && (Date.now() - lastDataTime > CONNECTION_TIMEOUT)) {
+                console.log('Connection lost, attempting to reconnect...');
+                setTimeout(initializeWebSocket, 5000);
+            }
         };
     } catch (error) {
         console.error('Error initializing WebSocket:', error);
         isConnected = false;
-        updateConnectionStatus();
+        updateConnectionStatus(false);
     }
 }
 
-document.getElementById('timeRange').addEventListener('change', function() {
-    const filteredData = filterDataByTimeRange(this.value);
-    temperatureChart.data.datasets[0].data = filteredData.map(d => ({x: d.timestamp, y: d.dryBulb}));
-    temperatureChart.data.datasets[1].data = filteredData.map(d => ({x: d.timestamp, y: d.wetBulb}));
-    temperatureChart.update();
-});
+
 
 function initPsychroChart() {
     try {
@@ -463,9 +465,8 @@ function checkConnection() {
     if (isConnected && (Date.now() - lastDataTime > CONNECTION_TIMEOUT)) {
         console.log('Connection timeout - no data received');
         isConnected = false;
-        updateConnectionStatus();
-        // Try to reconnect
-        socket.close();
+        updateConnectionStatus(false);
+        // Don't close the socket here, let the WebSocket handle its own state
     }
 }
 
@@ -561,7 +562,7 @@ function updateManualCalculations() {
     const enthalpy = calculateEnthalpy(dryBulb, absoluteHumidity);
 
     const manualData = {
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         dryBulb: dryBulb,
         wetBulb: wetBulb,
         relativeHumidity: relativeHumidity,
@@ -574,4 +575,121 @@ function updateManualCalculations() {
     
     updateCharts(manualData);
     updateParameters(manualData);
+}
+
+async function loadDataByTimeRange(range) {
+    if (range === 'custom') {
+        currentTimeRange = parseInt(document.getElementById('customTimeInput').value) || 60;
+    } else {
+        currentTimeRange = TIME_RANGES[range];
+    }
+    
+    try {
+        console.log(`Loading data for duration: ${currentTimeRange} minutes`);
+        const response = await fetch(`/api/history/${currentTimeRange}`);
+        if (!response.ok) throw new Error('Failed to fetch data');
+        
+        const data = await response.json();
+        console.log(`Received ${data.length} records from database`);
+        
+        // Clear existing chart data
+        temperatureChart.data.datasets[0].data = [];
+        temperatureChart.data.datasets[1].data = [];
+        
+        // Set the time window
+        const now = new Date();
+        const cutoffTime = new Date(now - currentTimeRange * 60 * 1000);
+        
+        // Only add data points within the time window
+        data.forEach(record => {
+            const timestamp = new Date(record.timestamp);
+            if (timestamp >= cutoffTime) {
+                temperatureChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: record.dry_bulb
+                });
+                temperatureChart.data.datasets[1].data.push({
+                    x: timestamp,
+                    y: record.wet_bulb
+                });
+            }
+        });
+        
+        // Update chart scales
+        temperatureChart.options.scales.x.min = cutoffTime;
+        temperatureChart.options.scales.x.max = now;
+        
+        temperatureChart.update();
+        
+        // Update the latest values if we have data
+        if (data.length > 0) {
+            updateParameters(data[data.length - 1]);
+        }
+    } catch (error) {
+        console.error('Error loading historical data:', error);
+    }
+}
+
+// Add this function to verify database operation
+async function checkDatabaseStatus() {
+    try {
+        const response = await fetch('/api/db/status');
+        const data = await response.json();
+        console.log('Database status:', data);
+        
+        // If we have records, load the last hour of data
+        if (data.recordCount > 0) {
+            await loadDataByTimeRange('1hr');
+        }
+    } catch (error) {
+        console.error('Error checking database status:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts first
+    initCharts();
+    initializeManualControls();
+    initializeWebSocket();
+
+    const timeRange = document.getElementById('timeRange');
+    const customTimeContainer = document.getElementById('customTimeContainer');
+    const applyCustomTime = document.getElementById('applyCustomTime');
+
+    // Check database status when page loads
+    checkDatabaseStatus();
+
+    timeRange.addEventListener('change', function(e) {
+        if (e.target.value === 'custom') {
+            customTimeContainer.style.display = 'block';
+        } else {
+            customTimeContainer.style.display = 'none';
+            loadDataByTimeRange(e.target.value);
+        }
+    });
+
+    applyCustomTime.addEventListener('click', function() {
+        loadDataByTimeRange('custom');
+    });
+});
+
+function handleManualUpdate() {
+    if (!isManualMode) return;
+
+    const dryBulb = parseFloat(document.getElementById('manual-dry-bulb').value);
+    const wetBulb = parseFloat(document.getElementById('manual-wet-bulb').value);
+    
+    // Calculate other parameters...
+    const data = {
+        type: 'data',
+        source: 'manual',  // Add this line to indicate manual input
+        dryBulb: dryBulb,
+        wetBulb: wetBulb,
+        // ... other calculated values ...
+        timestamp: new Date().toISOString()
+    };
+
+    // Update the display but don't save to database
+    updateParameters(data);
+    updateCharts(data);
 }

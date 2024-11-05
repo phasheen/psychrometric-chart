@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const path = require('path');
+const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,7 +13,7 @@ const wss = new WebSocket.Server({
     path: '/ws'
 });
 
-const portPath = '/dev/tty.usbmodem1201';  // or your actual port
+const portPath = '/dev/ttyACM0';  // or your actual port
 let port;
 let parser;
 let reconnectTimer;
@@ -161,6 +162,7 @@ function processAndSendData(trimmedData) {
 
     latestData = {
         type: 'data',
+        source: 'sensor',
         dryBulb: parseFloat(dryBulb.toFixed(2)),
         wetBulb: parseFloat(wetBulb.toFixed(2)),
         relativeHumidity: parseFloat((relativeHumidity * 100).toFixed(2)),
@@ -172,7 +174,7 @@ function processAndSendData(trimmedData) {
         timestamp: new Date().toISOString()
     };
     
-    console.log('Processed data:', latestData);
+    console.log('Processed sensor data:', latestData);
     
     // Send to all connected clients
     wss.clients.forEach((client) => {
@@ -180,6 +182,9 @@ function processAndSendData(trimmedData) {
             client.send(JSON.stringify(latestData));
         }
     });
+
+    // Only insert sensor data into database
+    db.insertMeasurement(latestData);
 }
 
 // Initialize the serial port when the server starts
@@ -193,8 +198,62 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+app.get('/api/history/:duration', async (req, res) => {
+    try {
+        const duration = parseInt(req.params.duration);
+        
+        // Add validation for duration
+        if (isNaN(duration) || duration < 1 || duration > 1440) {
+            return res.status(400).json({ 
+                error: 'Invalid duration. Must be between 1 and 1440 minutes.' 
+            });
+        }
+        
+        console.log('Requesting data for duration:', duration);
+        const data = await db.getMeasurements(duration);
+        console.log(`Sending ${data.length} records to client`);
+        res.json(data);
+    } catch (err) {
+        console.error('Error in /api/history:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/db/status', async (req, res) => {
+    try {
+        const count = await db.checkDatabase();
+        res.json({ 
+            status: 'ok', 
+            recordCount: count,
+            dbPath: path.join(__dirname, 'measurements.db')
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/measurements/latest', async (req, res) => {
+    try {
+        const data = await db.getMeasurements(60); // Last hour
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 wss.on('connection', (ws) => {
     console.log('New WebSocket connection');
+    
+    // Send initial connection status
+    ws.send(JSON.stringify({
+        type: 'status',
+        connected: port && port.isOpen
+    }));
+
+    // Send latest data if available
+    if (latestData) {
+        ws.send(JSON.stringify(latestData));
+    }
     
     ws.on('error', (error) => {
         console.error('WebSocket error:', error);

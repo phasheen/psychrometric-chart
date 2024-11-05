@@ -66,14 +66,19 @@
                     <p><strong>Last Update:</strong> <span id="timestamp">-</span></p>
                 </div>
                 <div id="chartControls">
-                    <h2>Chart Controls</h2>
-                    <label for="timeRange">Time Range:</label>
+                    <h2>Time Range</h2>
                     <select id="timeRange">
-                        <option value="1h">Last Hour</option>
-                        <option value="6h">Last 6 Hours</option>
-                        <option value="24h">Last 24 Hours</option>
-                        <option value="7d">Last 7 Days</option>
+                        <option value="1min">Last Minute</option>
+                        <option value="15min">15 Minutes</option>
+                        <option value="1hr">1 Hour</option>
+                        <option value="10hr">10 Hours</option>
+                        <option value="custom">Custom</option>
                     </select>
+                    
+                    <div id="customTimeContainer" style="display: none;">
+                        <input type="number" id="customTimeInput" placeholder="Minutes" min="1" max="1440">
+                        <button id="applyCustomTime">Apply</button>
+                    </div>
                 </div>
             </div>
         </div>
