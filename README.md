@@ -49,8 +49,10 @@ The following lists contain the link to buy (Coupang).
 - [Fan - 1pc](https://www.coupang.com/vp/products/7996571299?itemId=22246880434&vendorItemId=89293426760&q=%EC%86%8C%ED%98%95+%ED%8C%AC&itemsCount=36&searchId=9c47b3f5059e455d9f5a838aec6ff48c&rank=6&isAddedCart=)
 - [Anemometer - 1pc](https://www.coupang.com/vp/products/8192902033?itemId=23453033261&vendorItemId=73031508876&q=%ED%92%8D%EC%86%8D%EA%B3%84&itemsCount=36&searchId=7a7741756f6d49f4b6a9af78966f4b84&rank=0&isAddedCart=)
 
+![hardware](resources/hardware.png)
+
 ## Software Design
-![software](SCR-20241105-jbly.png)
+![software](resources/software.png)
 ## Acknowledgement
 This project was funded by Prof. Ghiseok Kim from Lab of Physical Properties and Process Engineering of Agricultural Products ([SNUPHEL](https://snuphel.snu.ac.kr/)).
 
